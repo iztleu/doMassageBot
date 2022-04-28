@@ -1,0 +1,12 @@
+CREATE TABLE users (
+  id    SERIAL PRIMARY KEY,
+  userId    int,
+  fullName  VARCHAR(100),
+  username  VARCHAR(100),
+  email VARCHAR(100)
+);
+
+select * from users;
+INSERT INTO users(userId, fullName,username,email) VALUES(617440125, 'asel', 'aseelosun', 'email');
+DELETE FROM users
+WHERE userId =617440125 ;

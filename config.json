@@ -1,0 +1,14 @@
+{
+  "TelegramBotToken": "5331655070:AAHpoFYLzk0PH2dmmSlyXBfiryinXIKqRtA",
+  "UpdateTimeout": 60,
+  "db": {
+    "host": "localhost",
+    "port": "5432",
+    "user": "postgres",
+    "pass": "admin123",
+    "dbname": "postgres",
+    "idle_conns": 10,
+    "open_conns": 10
+  }
+
+}

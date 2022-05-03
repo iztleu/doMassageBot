@@ -8,201 +8,6 @@ import (
 	_ "github.com/lib/pq"
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
 	"log"
-	"net/mail"
-)
-
-var signMenu = tgbotapi.NewReplyKeyboard(
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Sign up"),
-		tgbotapi.NewKeyboardButton("Cancel")),
-)
-
-var mainMenu = tgbotapi.NewReplyKeyboard(
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Enroll"),
-		tgbotapi.NewKeyboardButton("Rating")),
-)
-
-var massageMenu = tgbotapi.NewReplyKeyboard(
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Шейно воротниковый массаж"),
-		tgbotapi.NewKeyboardButton("Лечебный массаж")),
-)
-
-type Users struct {
-	State    int
-	Fullname string
-	Username string
-	Email    string
-}
-
-var usersMap map[int]*Users
-
-func init() {
-	usersMap = make(map[int]*Users)
-}
-
-func main() {
-	conf, err := config.LoadConfiguration("config.json")
-	if err != nil {
-		fmt.Println(err)
-	}
-	db, err := db2.ConnectingToDb(conf)
-
-	bot, err := tgbotapi.NewBotAPI(conf.TelegramBotToken)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = conf.UpdateTimeout
-
-	updates, err := bot.GetUpdatesChan(u)
-
-	for update := range updates {
-		log.Printf("[%s] [%s] %s", update.Message.From.ID, update.Message.From.UserName, update.Message.Text)
-		if update.Message != nil {
-			//if CheckIfUserExists(db, update.Message.From.ID) {
-			//	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select date:")
-			//	classes := [3]string{"28.04", "29.04", "30.04"}
-			//	keyboard := tgbotapi.InlineKeyboardMarkup{}
-			//	for _, class := range classes {
-			//		var row []tgbotapi.InlineKeyboardButton
-			//		btn := tgbotapi.NewInlineKeyboardButtonData(class, class)
-			//		row = append(row, btn)
-			//		keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
-			//	}
-			//
-			//	msg.ReplyMarkup = keyboard
-			//	bot.Send(msg)
-			//	fmt.Println(update.CallbackQuery)
-			//	//switch update.Message.Text {
-			//	//case "28.04":
-			//	//	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select time:")
-			//	//	classes := []string{"9:00", "10:00", "11:00"}
-			//	//	keyboard := tgbotapi.InlineKeyboardMarkup{}
-			//	//	for _, class := range classes {
-			//	//		var row []tgbotapi.InlineKeyboardButton
-			//	//		btn := tgbotapi.NewInlineKeyboardButtonData(class, class)
-			//	//		row = append(row, btn)
-			//	//		keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
-			//	//	}
-			//	//	msg.ReplyMarkup = keyboard
-			//	//	bot.Send(msg)
-			//	//}
-			//}
-
-			if CheckIfUserExists(db, update.Message.From.ID) {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Welcome "+update.Message.From.UserName)
-				msg.ReplyMarkup = mainMenu
-				bot.Send(msg)
-				if update.Message.Text == mainMenu.Keyboard[0][0].Text {
-
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Choose, what type of massage do you need?")
-					msg.ReplyMarkup = massageMenu
-					bot.Send(msg)
-					if update.Message.Text == massageMenu.Keyboard[0][1].Text {
-						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select your class")
-						classes := []string{"cm", "dkmk", "dvns"}
-						keyboard := tgbotapi.InlineKeyboardMarkup{}
-						for _, class := range classes {
-							var row []tgbotapi.InlineKeyboardButton
-							btn := tgbotapi.NewInlineKeyboardButtonData(class, class)
-							row = append(row, btn)
-							keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
-						}
-
-						msg.ReplyMarkup = keyboard
-						bot.Send(msg)
-					}
-
-				}
-
-			} else {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hello, you have to sign up first.")
-				msg.ReplyMarkup = signMenu
-				bot.Send(msg)
-				if update.Message.Text == signMenu.Keyboard[0][0].Text {
-					usersMap[update.Message.From.ID] = new(Users)
-					usersMap[update.Message.From.ID].State = 0
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Your fullname:")
-					msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-					bot.Send(msg)
-				} else {
-					u, ok := usersMap[update.Message.From.ID]
-					fmt.Println(" +++", u, ok)
-					if ok {
-						if u.State == 0 {
-							u.Fullname = update.Message.Text
-							msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Your email:")
-							msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-							bot.Send(msg)
-							u.State = 1
-						} else if u.State == 1 {
-							u.Email = update.Message.Text
-							if IsValidEmail(u.Email) {
-								msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Good!")
-								msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-								bot.Send(msg)
-								u.Username = update.Message.From.UserName
-								InsertIntoUsers(db, update.Message.From.ID, u.Fullname, u.Username, u.Email)
-							}
-							msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Invalid email")
-							msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-							bot.Send(msg)
-
-						}
-					}
-				}
-
-			}
-
-		}
-
-	}
-}
-func CheckIfUserExists(db *sql.DB, userId int) bool {
-	sqlStmt := `SELECT userId FROM users WHERE userId = $1`
-	err := db.QueryRow(sqlStmt, userId).Scan(&userId)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			log.Print(err)
-		}
-		return false
-	}
-	return true
-}
-func InsertIntoUsers(db *sql.DB, userId int, fullname string, username string, email string) {
-	sqlStmt := `INSERT INTO users (userId, fullName, username, email) VALUES ($1, $2, $3, $4)`
-	_, err := db.Exec(sqlStmt, userId, fullname, username, email)
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func IsValidEmail(email string) bool {
-	_, err := mail.ParseAddress(email)
-	return err == nil
-}
-
-
-
-
-
-
-
-
-
-package main
-
-import (
-	"database/sql"
-	"doMassage/internal/config"
-	db2 "doMassage/internal/db"
-	"fmt"
-	_ "github.com/lib/pq"
-	tgbotapi "gopkg.in/telegram-bot-api.v4"
-	"log"
 	"regexp"
 )
 
@@ -215,7 +20,7 @@ var signMenu = tgbotapi.NewReplyKeyboard(
 var mainMenu = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("Enroll"),
-		tgbotapi.NewKeyboardButton("Rating")),
+		tgbotapi.NewKeyboardButton("My schedule")),
 )
 
 var massageMenu = tgbotapi.NewReplyKeyboard(
@@ -223,19 +28,6 @@ var massageMenu = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButton("Шейно воротниковый массаж"),
 		tgbotapi.NewKeyboardButton("Лечебный массаж")),
 )
-
-//type Users struct {
-//	State    int
-//	Fullname string
-//	Username string
-//	Email    string
-//}
-//
-//var usersMap map[int]*Users
-//
-//func init() {
-//	usersMap = make(map[int]*Users)
-//}
 
 func main() {
 	conf, err := config.LoadConfiguration("config.json")
@@ -255,9 +47,8 @@ func main() {
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-
 		if update.Message != nil {
-
+			UpdateUsername(db, update.Message.From.ID, update.Message.From.UserName)
 			if update.Message.IsCommand() {
 				cmdText := update.Message.Command()
 				if cmdText == "start" {
@@ -273,33 +64,67 @@ func main() {
 					}
 				}
 			} else {
-				if update.Message.Text == signMenu.Keyboard[0][0].Text {
+				switch update.Message.Text {
+				case signMenu.Keyboard[0][0].Text:
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Your fullname:")
 					msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 					bot.Send(msg)
-					UpdateStatus(db, update.Message.From.ID, 1)
-				} else {
-					userStatus := getStatus(db, update.Message.From.ID)
+					UpdateUserStatus(db, update.Message.From.ID, 1)
+				case mainMenu.Keyboard[0][0].Text:
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Choose, what type of massage do you need?")
+					msg.ReplyMarkup = massageMenu
+					bot.Send(msg)
+				case massageMenu.Keyboard[0][0].Text:
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select date")
+					dates := GetDates(db, massageMenu.Keyboard[0][0].Text)
+					keyboard := tgbotapi.InlineKeyboardMarkup{}
+					for _, date := range dates {
+						var row []tgbotapi.InlineKeyboardButton
+						btn := tgbotapi.NewInlineKeyboardButtonData(date, date)
+						row = append(row, btn)
+						keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
+					}
+					msg.ReplyMarkup = keyboard
+					bot.Send(msg)
+					InsertIntoBookingList(db, massageMenu.Keyboard[0][0].Text, "", "", update.Message.From.ID, 0)
+				case massageMenu.Keyboard[0][1].Text:
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select date")
+					dates := GetDates(db, massageMenu.Keyboard[0][1].Text)
+					keyboard := tgbotapi.InlineKeyboardMarkup{}
+					for _, date := range dates {
+						var row []tgbotapi.InlineKeyboardButton
+						btn := tgbotapi.NewInlineKeyboardButtonData(date, date)
+						row = append(row, btn)
+						keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
+					}
+					msg.ReplyMarkup = keyboard
+					bot.Send(msg)
+					InsertIntoBookingList(db, massageMenu.Keyboard[0][1].Text, "", "", update.Message.From.ID, 0)
+					fmt.Println("its callback, ", update.CallbackQuery.Data)
+
+				default:
+					userStatus := getUserStatus(db, update.Message.From.ID)
 					switch userStatus {
 					case 1:
 						fullname := update.Message.Text
 						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Your email:")
 						msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 						bot.Send(msg)
-						UpdateStatus(db, update.Message.From.ID, 2)
+						UpdateUserStatus(db, update.Message.From.ID, 2)
 						UpdateFullname(db, update.Message.From.ID, fullname)
 					case 2:
 						email := update.Message.Text
 						if IsEmailValid(email) {
 							UpdateEmail(db, update.Message.From.ID, email)
-							UpdateStatus(db, update.Message.From.ID, 3)
+							UpdateUserStatus(db, update.Message.From.ID, 3)
 							msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Good!")
-							msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+							msg.ReplyMarkup = mainMenu
 							bot.Send(msg)
 						} else {
-							msg := tgbotapi.NewMessage(update.Message.Chat.ID, "invalid email")
+							msg := tgbotapi.NewMessage(update.Message.Chat.ID, "invalid email, try again")
 							msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 							bot.Send(msg)
+							UpdateUserStatus(db, update.Message.From.ID, 1)
 						}
 
 					}
@@ -309,11 +134,41 @@ func main() {
 			}
 
 		}
+		if update.CallbackQuery != nil {
+			bookingStatus := GetBookingStatus(db, update.CallbackQuery.From.ID)
+			fmt.Println("Status: ", bookingStatus)
+			switch bookingStatus {
+			case 0:
+				date := update.CallbackQuery.Data
+				time := GetTime(db, date)
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Select time:")
+				keyboard := tgbotapi.InlineKeyboardMarkup{}
+				for _, t := range time {
+					var row []tgbotapi.InlineKeyboardButton
+					btn := tgbotapi.NewInlineKeyboardButtonData(t, t)
+					row = append(row, btn)
+					keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
+				}
+
+				msg.ReplyMarkup = keyboard
+				bot.Send(msg)
+				UpdateBookingStatus(db, update.CallbackQuery.From.ID, 1)
+				UpdateBookingDate(db, update.CallbackQuery.From.ID, date)
+			case 1:
+				time := update.CallbackQuery.Data
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Good")
+				msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+				bot.Send(msg)
+				UpdateBookingStatus(db, update.CallbackQuery.From.ID, 2)
+				UpdateBookingTime(db, update.CallbackQuery.From.ID, time)
+			}
+
+		}
 	}
 
 }
 
-func getStatus(db *sql.DB, userId int) int {
+func getUserStatus(db *sql.DB, userId int) int {
 	var (
 		status int
 	)
@@ -322,7 +177,6 @@ func getStatus(db *sql.DB, userId int) int {
 	if err != nil {
 		log.Fatal("Failed to execute query: ", err)
 	}
-	fmt.Println("status: ", status)
 	return status
 }
 
@@ -348,7 +202,7 @@ func UpdateEmail(db *sql.DB, userId int, email string) {
 	}
 }
 
-func UpdateStatus(db *sql.DB, userId int, status int) {
+func UpdateUserStatus(db *sql.DB, userId int, status int) {
 	sqlStatement := `UPDATE users SET status = $2 WHERE userId = $1;`
 	_, err := db.Exec(sqlStatement, userId, status)
 	if err != nil {
@@ -367,6 +221,7 @@ func CheckIfUserExists(db *sql.DB, userId int) bool {
 	}
 	return true
 }
+
 func InsertIntoUsers(db *sql.DB, userId int, fullname string, username string, email string, status int) {
 	sqlStmt := `INSERT INTO users (userId, fullName, username, email, status) VALUES ($1, $2, $3, $4, $5)`
 	_, err := db.Exec(sqlStmt, userId, fullname, username, email, status)
@@ -384,3 +239,82 @@ func IsEmailValid(e string) bool {
 	return false
 }
 
+func GetDates(db *sql.DB, mType string) []string {
+	var (
+		mDate      string
+		datesArray []string
+	)
+	rows, err := db.Query("select distinct(mDate) from massageSchedule where mType = $1", mType)
+	if err != nil {
+		fmt.Println(err)
+	}
+	for rows.Next() {
+		err := rows.Scan(&mDate)
+		if err != nil {
+			fmt.Println(err)
+		}
+		datesArray = append(datesArray, mDate)
+	}
+	return datesArray
+}
+func GetTime(db *sql.DB, date string) []string {
+	var (
+		mTime     string
+		timeArray []string
+	)
+	rows, err := db.Query("select mTime from massageSchedule where mDate = $1", date)
+	if err != nil {
+		fmt.Println(err)
+	}
+	for rows.Next() {
+		err := rows.Scan(&mTime)
+		if err != nil {
+			fmt.Println(err)
+		}
+		timeArray = append(timeArray, mTime)
+	}
+	return timeArray
+}
+
+func InsertIntoBookingList(db *sql.DB, mType string, mDate string, mTime string, userId int, status int) {
+	sqlStmt := `INSERT INTO massageBookingList (mType, mDate, mTime,userId, status) VALUES ($1, $2, $3, $4, $5)`
+	_, err := db.Exec(sqlStmt, mType, mDate, mTime, userId, status)
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func GetBookingStatus(db *sql.DB, userId int) int {
+	var (
+		status int
+	)
+	sqlStatement := "SELECT distinct(status) FROM massageBookingList WHERE userId = $1;"
+	err := db.QueryRow(sqlStatement, userId).Scan(&status)
+	if err != nil {
+		log.Fatal("Failed to execute query: ", err)
+	}
+	return status
+}
+func UpdateBookingStatus(db *sql.DB, userId int, status int) {
+	sqlStatement := `UPDATE massageBookingList SET status = $2 WHERE userId = $1;`
+	_, err := db.Exec(sqlStatement, userId, status)
+	if err != nil {
+		panic(err)
+	}
+}
+func UpdateBookingDate(db *sql.DB, userId int, mdate string) {
+	sqlStatement := `UPDATE massageBookingList SET mDate= $2 WHERE userId = $1;`
+	_, err := db.Exec(sqlStatement, userId, mdate)
+	if err != nil {
+		panic(err)
+	}
+}
+func UpdateBookingTime(db *sql.DB, userId int, mtime string) {
+	sqlStatement := `UPDATE massageBookingList SET mTime= $2 WHERE userId = $1;`
+	_, err := db.Exec(sqlStatement, userId, mtime)
+	if err != nil {
+		panic(err)
+	}
+}
+
+//func UpdateMassageSchedule(db, )

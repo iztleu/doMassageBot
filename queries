@@ -75,5 +75,10 @@ select * from massageSchedule;
 DELETE FROM massageSchedule WHERE mType = 'Шейно воротниковый массаж' and mdate = '05.05.2022' and mtime = '9:00';
 
 
+SELECT m.mDate,mTime, mType
+FROM massageBookingList as m
+JOIN users as u ON u.userId = m.userId where m.userId = $1;
+
+
 
 

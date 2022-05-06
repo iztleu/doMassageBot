@@ -2,8 +2,8 @@ package main
 
 import (
 	"database/sql"
-	"doMassage/internal/config"
-	db2 "doMassage/internal/db"
+	"doMassageBot/internal/config"
+	db2 "doMassageBot/internal/db"
 	"fmt"
 	_ "github.com/lib/pq"
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
@@ -63,7 +63,7 @@ func main() {
 		log.Printf("[%s] [%s] %s", update.Message.From.ID, update.Message.From.UserName, update.Message.Text)
 		if update.Message != nil {
 			if CheckIfUserExists(db, update.Message.From.ID) {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select date:")
+				_ = tgbotapi.NewMessage(update.Message.Chat.ID, "Select date:")
 				classes := [3]string{"28.04", "29.04", "30.04"}
 				keyboard := tgbotapi.InlineKeyboardMarkup{}
 				for _, class := range classes {

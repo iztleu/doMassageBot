@@ -2,7 +2,7 @@ package db
 
 import (
 	"database/sql"
-	"doMassage/internal/config"
+	"doMassageBot/internal/config"
 	"fmt"
 	"log"
 )

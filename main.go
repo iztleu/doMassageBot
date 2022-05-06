@@ -1,9 +1,9 @@
 package main
 
 import (
-	"doMassage/internal/config"
-	db2 "doMassage/internal/db"
-	query "doMassage/internal/db"
+	"doMassageBot/internal/config"
+	db2 "doMassageBot/internal/db"
+	query "doMassageBot/internal/db"
 	"fmt"
 	_ "github.com/lib/pq"
 	tgbotapi "gopkg.in/telegram-bot-api.v4"

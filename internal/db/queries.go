@@ -2,7 +2,7 @@ package db
 
 import (
 	"database/sql"
-	entity "doMassage/internal/entity"
+	entity "doMassageBot/internal/entity"
 	"fmt"
 	"log"
 	"regexp"
